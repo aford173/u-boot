@@ -14,6 +14,7 @@
 #include <asm/io.h>
 #include <asm/arch/hardware.h>
 #include <dm.h>
+#include <dm/platform_data/spi_davinci.h>
 
 /* SPIGCR0 */
 #define SPIGCR0_SPIENA_MASK	0x1
@@ -118,9 +119,6 @@ struct davinci_spi_regs {
 
 /* davinci spi slave */
 struct davinci_spi_slave {
-#ifndef CONFIG_DM_SPI
-	struct spi_slave slave;
-#endif
 	struct davinci_spi_regs *regs;
 	unsigned int freq; /* current SPI bus frequency */
 	unsigned int mode; /* current SPI mode used */
@@ -240,10 +238,42 @@ static int davinci_spi_read_write(struct davinci_spi_slave *ds, unsigned
 	return 0;
 }
 
-
-static int __davinci_spi_claim_bus(struct davinci_spi_slave *ds, int cs)
+static int davinci_spi_set_speed(struct udevice *bus, uint max_hz)
 {
+	struct davinci_spi_slave *ds = dev_get_priv(bus);
+
+	debug("%s speed %u\n", __func__, max_hz);
+	if (max_hz > CONFIG_SYS_SPI_CLK / 2)
+		return -EINVAL;
+
+	ds->freq = max_hz;
+
+	return 0;
+}
+
+static int davinci_spi_set_mode(struct udevice *bus, uint mode)
+{
+	struct davinci_spi_slave *ds = dev_get_priv(bus);
+
+	debug("%s mode %u\n", __func__, mode);
+	ds->mode = mode;
+
+	return 0;
+}
+
+static int davinci_spi_claim_bus(struct udevice *dev)
+{
+	struct dm_spi_slave_platdata *slave_plat =
+		dev_get_parent_platdata(dev);
+	struct udevice *bus = dev->parent;
+	struct davinci_spi_slave *ds = dev_get_priv(bus);
 	unsigned int mode = 0, scalar;
+
+	if (slave_plat->cs >= ds->num_cs) {
+		printf("Invalid SPI chipselect\n");
+		return -EINVAL;
+	}
+	ds->half_duplex = slave_plat->mode & SPI_PREAMBLE;
 
 	/* Enable the SPI hardware */
 	writel(SPIGCR0_SPIRST_MASK, &ds->regs->gcr0);
@@ -254,7 +284,7 @@ static int __davinci_spi_claim_bus(struct davinci_spi_slave *ds, int cs)
 	writel(SPIGCR1_MASTER_MASK | SPIGCR1_CLKMOD_MASK, &ds->regs->gcr1);
 
 	/* CS, CLK, SIMO and SOMI are functional pins */
-	writel(((1 << cs) | SPIPC0_CLKFUN_MASK |
+	writel(((1 << slave_plat->cs) | SPIPC0_CLKFUN_MASK |
 		SPIPC0_DOFUN_MASK | SPIPC0_DIFUN_MASK), &ds->regs->pc0);
 
 	/* setup format */
@@ -292,19 +322,31 @@ static int __davinci_spi_claim_bus(struct davinci_spi_slave *ds, int cs)
 	return 0;
 }
 
-static int __davinci_spi_release_bus(struct davinci_spi_slave *ds)
+static int davinci_spi_release_bus(struct udevice *dev)
 {
+	struct davinci_spi_slave *ds = dev_get_priv(dev->parent);
+
 	/* Disable the SPI hardware */
 	writel(SPIGCR0_SPIRST_MASK, &ds->regs->gcr0);
 
 	return 0;
 }
 
-static int __davinci_spi_xfer(struct davinci_spi_slave *ds,
-		unsigned int bitlen,  const void *dout, void *din,
-		unsigned long flags)
+static int davinci_spi_xfer(struct udevice *dev, unsigned int bitlen,
+			    const void *dout, void *din,
+			    unsigned long flags)
 {
+	struct dm_spi_slave_platdata *slave =
+		dev_get_parent_platdata(dev);
+	struct udevice *bus = dev->parent;
+	struct davinci_spi_slave *ds = dev_get_priv(bus);
 	unsigned int len;
+
+	if (slave->cs >= ds->num_cs) {
+		printf("Invalid SPI chipselect\n");
+		return -EINVAL;
+	}
+	ds->cur_cs = slave->cs;
 
 	if (bitlen == 0)
 		/* Finish any previously submitted transfers */
@@ -339,214 +381,6 @@ out:
 		u8 dummy = 0;
 		davinci_spi_write(ds, 1, &dummy, flags);
 	}
-	return 0;
-}
-
-#ifndef CONFIG_DM_SPI
-
-static inline struct davinci_spi_slave *to_davinci_spi(struct spi_slave *slave)
-{
-	return container_of(slave, struct davinci_spi_slave, slave);
-}
-
-int spi_cs_is_valid(unsigned int bus, unsigned int cs)
-{
-	int ret = 0;
-
-	switch (bus) {
-	case SPI0_BUS:
-		if (cs < SPI0_NUM_CS)
-			ret = 1;
-		break;
-#ifdef CONFIG_SYS_SPI1
-	case SPI1_BUS:
-		if (cs < SPI1_NUM_CS)
-			ret = 1;
-		break;
-#endif
-#ifdef CONFIG_SYS_SPI2
-	case SPI2_BUS:
-		if (cs < SPI2_NUM_CS)
-			ret = 1;
-		break;
-#endif
-	default:
-		/* Invalid bus number. Do nothing */
-		break;
-	}
-	return ret;
-}
-
-void spi_cs_activate(struct spi_slave *slave)
-{
-	/* do nothing */
-}
-
-void spi_cs_deactivate(struct spi_slave *slave)
-{
-	/* do nothing */
-}
-
-void spi_init(void)
-{
-	/* do nothing */
-}
-
-struct spi_slave *spi_setup_slave(unsigned int bus, unsigned int cs,
-			unsigned int max_hz, unsigned int mode)
-{
-	struct davinci_spi_slave	*ds;
-
-	if (!spi_cs_is_valid(bus, cs))
-		return NULL;
-
-	ds = spi_alloc_slave(struct davinci_spi_slave, bus, cs);
-	if (!ds)
-		return NULL;
-
-	switch (bus) {
-	case SPI0_BUS:
-		ds->regs = (struct davinci_spi_regs *)SPI0_BASE;
-		break;
-#ifdef CONFIG_SYS_SPI1
-	case SPI1_BUS:
-		ds->regs = (struct davinci_spi_regs *)SPI1_BASE;
-		break;
-#endif
-#ifdef CONFIG_SYS_SPI2
-	case SPI2_BUS:
-		ds->regs = (struct davinci_spi_regs *)SPI2_BASE;
-		break;
-#endif
-	default: /* Invalid bus number */
-		return NULL;
-	}
-
-	ds->freq = max_hz;
-	ds->mode = mode;
-
-	return &ds->slave;
-}
-
-void spi_free_slave(struct spi_slave *slave)
-{
-	struct davinci_spi_slave *ds = to_davinci_spi(slave);
-
-	free(ds);
-}
-
-int spi_xfer(struct spi_slave *slave, unsigned int bitlen,
-	     const void *dout, void *din, unsigned long flags)
-{
-	struct davinci_spi_slave *ds = to_davinci_spi(slave);
-
-	ds->cur_cs = slave->cs;
-
-	return __davinci_spi_xfer(ds, bitlen, dout, din, flags);
-}
-
-int spi_claim_bus(struct spi_slave *slave)
-{
-	struct davinci_spi_slave *ds = to_davinci_spi(slave);
-
-#ifdef CONFIG_SPI_HALF_DUPLEX
-	ds->half_duplex = true;
-#else
-	ds->half_duplex = false;
-#endif
-	return __davinci_spi_claim_bus(ds, ds->slave.cs);
-}
-
-void spi_release_bus(struct spi_slave *slave)
-{
-	struct davinci_spi_slave *ds = to_davinci_spi(slave);
-
-	__davinci_spi_release_bus(ds);
-}
-
-#else
-static int davinci_spi_set_speed(struct udevice *bus, uint max_hz)
-{
-	struct davinci_spi_slave *ds = dev_get_priv(bus);
-
-	debug("%s speed %u\n", __func__, max_hz);
-	if (max_hz > CONFIG_SYS_SPI_CLK / 2)
-		return -EINVAL;
-
-	ds->freq = max_hz;
-
-	return 0;
-}
-
-static int davinci_spi_set_mode(struct udevice *bus, uint mode)
-{
-	struct davinci_spi_slave *ds = dev_get_priv(bus);
-
-	debug("%s mode %u\n", __func__, mode);
-	ds->mode = mode;
-
-	return 0;
-}
-
-static int davinci_spi_claim_bus(struct udevice *dev)
-{
-	struct dm_spi_slave_platdata *slave_plat =
-		dev_get_parent_platdata(dev);
-	struct udevice *bus = dev->parent;
-	struct davinci_spi_slave *ds = dev_get_priv(bus);
-
-	if (slave_plat->cs >= ds->num_cs) {
-		printf("Invalid SPI chipselect\n");
-		return -EINVAL;
-	}
-	ds->half_duplex = slave_plat->mode & SPI_PREAMBLE;
-
-	return __davinci_spi_claim_bus(ds, slave_plat->cs);
-}
-
-static int davinci_spi_release_bus(struct udevice *dev)
-{
-	struct davinci_spi_slave *ds = dev_get_priv(dev->parent);
-
-	return __davinci_spi_release_bus(ds);
-}
-
-static int davinci_spi_xfer(struct udevice *dev, unsigned int bitlen,
-			    const void *dout, void *din,
-			    unsigned long flags)
-{
-	struct dm_spi_slave_platdata *slave =
-		dev_get_parent_platdata(dev);
-	struct udevice *bus = dev->parent;
-	struct davinci_spi_slave *ds = dev_get_priv(bus);
-
-	if (slave->cs >= ds->num_cs) {
-		printf("Invalid SPI chipselect\n");
-		return -EINVAL;
-	}
-	ds->cur_cs = slave->cs;
-
-	return __davinci_spi_xfer(ds, bitlen, dout, din, flags);
-}
-
-static int davinci_spi_probe(struct udevice *bus)
-{
-	/* Nothing to do */
-	return 0;
-}
-
-static int davinci_ofdata_to_platadata(struct udevice *bus)
-{
-	struct davinci_spi_slave *ds = dev_get_priv(bus);
-	const void *blob = gd->fdt_blob;
-	int node = dev_of_offset(bus);
-
-	ds->regs = devfdt_map_physmem(bus, sizeof(struct davinci_spi_regs));
-	if (!ds->regs) {
-		printf("%s: could not map device address\n", __func__);
-		return -EINVAL;
-	}
-	ds->num_cs = fdtdec_get_int(blob, node, "num-cs", 4);
 
 	return 0;
 }
@@ -559,20 +393,49 @@ static const struct dm_spi_ops davinci_spi_ops = {
 	.set_mode	= davinci_spi_set_mode,
 };
 
+static int davinci_spi_probe(struct udevice *bus)
+{
+	struct davinci_spi_slave *ds = dev_get_priv(bus);
+	struct davinci_spi_platdata *plat = bus->platdata;
+	ds->regs = plat->regs;
+	ds->num_cs = plat->num_cs;
+
+	return 0;
+}
+
+#if CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)
+static int davinci_ofdata_to_platadata(struct udevice *bus)
+{
+	struct davinci_spi_platdata *plat = bus->platdata;
+	fdt_addr_t addr;
+
+	addr = devfdt_get_addr(bus);
+	if (addr == FDT_ADDR_T_NONE)
+		return -EINVAL;
+
+	plat->regs = (struct davinci_spi_regs *)addr;
+	plat->num_cs = fdtdec_get_int(gd->fdt_blob, dev_of_offset(bus), "num-cs", 4);
+
+	return 0;
+}
+
 static const struct udevice_id davinci_spi_ids[] = {
 	{ .compatible = "ti,keystone-spi" },
 	{ .compatible = "ti,dm6441-spi" },
 	{ .compatible = "ti,da830-spi" },
 	{ }
 };
+#endif
 
 U_BOOT_DRIVER(davinci_spi) = {
 	.name = "davinci_spi",
 	.id = UCLASS_SPI,
+#if CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)
 	.of_match = davinci_spi_ids,
-	.ops = &davinci_spi_ops,
 	.ofdata_to_platdata = davinci_ofdata_to_platadata,
-	.priv_auto_alloc_size = sizeof(struct davinci_spi_slave),
-	.probe = davinci_spi_probe,
-};
+        .platdata_auto_alloc_size = sizeof(struct davinci_spi_platdata),
 #endif
+	.probe = davinci_spi_probe,
+	.ops = &davinci_spi_ops,
+	.priv_auto_alloc_size = sizeof(struct davinci_spi_slave),
+};
