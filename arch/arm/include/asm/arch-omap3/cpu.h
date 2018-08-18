@@ -457,6 +457,43 @@ struct pm {
 	u8 res6[0x14];
 	u32 addr_match_2;		/* 0x80 */
 };
+
+/* OMAP3 GPIO registers */
+struct omap_gpio {
+	int revision; 	/* Offset 0 */
+	int reserved[3];
+	int sysconfig; /* 0x10 */
+	int sysstatus;
+	int irqstatus1; /* 0x18 */
+	int irqenable1;
+	int wakeupenable; /* 0x20 */
+	int reserved2;
+	int irqstatus2; /* 0x28 */
+	int irqenable2;
+	int ctrl;		/* 0x30 */
+	int oe;
+	int datain;		/* 0x38 */
+	int dataout;
+	int leveldetect0;	/* 0x40 */
+	int leveldetect1;
+	int risingdetect;	/* 0x48 */
+	int fallingdetec;
+	int debouncenable;	/* 0x50 */
+	int debouncingtime;
+	int reserved3[2];
+	int clearirqenable1; /* 0x60 */
+	int setirqenable1;
+	int reserved4[2];
+	int clearirqenable2; /* 70 */
+	int setirqenable2;
+	int reserved5[2];
+	int clearwkuena;	/* 0x80 */
+	int setwkuena;
+	int reserved6[2];
+	int cleardataout;	/* 0x90 */
+	int setdataout;
+};
+
 #endif /*__ASSEMBLY__ */
 #endif /* __KERNEL_STRICT_NAMES */
 
@@ -474,31 +511,5 @@ struct pm {
 
 /* MUSB base */
 #define MUSB_BASE		(OMAP34XX_CORE_L4_IO_BASE + 0xAB000)
-
-/* OMAP3 GPIO registers */
-#define OMAP_GPIO_REVISION		0x0000
-#define OMAP_GPIO_SYSCONFIG		0x0010
-#define OMAP_GPIO_SYSSTATUS		0x0014
-#define OMAP_GPIO_IRQSTATUS1		0x0018
-#define OMAP_GPIO_IRQSTATUS2		0x0028
-#define OMAP_GPIO_IRQENABLE2		0x002c
-#define OMAP_GPIO_IRQENABLE1		0x001c
-#define OMAP_GPIO_WAKE_EN		0x0020
-#define OMAP_GPIO_CTRL			0x0030
-#define OMAP_GPIO_OE			0x0034
-#define OMAP_GPIO_DATAIN		0x0038
-#define OMAP_GPIO_DATAOUT		0x003c
-#define OMAP_GPIO_LEVELDETECT0		0x0040
-#define OMAP_GPIO_LEVELDETECT1		0x0044
-#define OMAP_GPIO_RISINGDETECT		0x0048
-#define OMAP_GPIO_FALLINGDETECT		0x004c
-#define OMAP_GPIO_DEBOUNCE_EN		0x0050
-#define OMAP_GPIO_DEBOUNCE_VAL		0x0054
-#define OMAP_GPIO_CLEARIRQENABLE1	0x0060
-#define OMAP_GPIO_SETIRQENABLE1		0x0064
-#define OMAP_GPIO_CLEARWKUENA		0x0080
-#define OMAP_GPIO_SETWKUENA		0x0084
-#define OMAP_GPIO_CLEARDATAOUT		0x0090
-#define OMAP_GPIO_SETDATAOUT		0x0094
 
 #endif /* _CPU_H */

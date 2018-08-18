@@ -51,74 +51,56 @@ int gpio_is_valid(int gpio)
 	return (gpio >= 0) && (gpio < OMAP_MAX_GPIO);
 }
 
-static void _set_gpio_direction(const struct gpio_bank *bank, int gpio,
+static void _set_gpio_direction(const struct omap_gpio *reg, int gpio,
 				int is_input)
 {
-	void *reg = bank->base;
 	u32 l;
 
-	reg += OMAP_GPIO_OE;
-
-	l = __raw_readl(reg);
+	l = __raw_readl(&(reg->oe));
 	if (is_input)
 		l |= 1 << gpio;
 	else
 		l &= ~(1 << gpio);
-	__raw_writel(l, reg);
+	__raw_writel(l, &(reg->oe));
 }
 
 /**
  * Get the direction of the GPIO by reading the GPIO_OE register
  * corresponding to the specified bank.
  */
-static int _get_gpio_direction(const struct gpio_bank *bank, int gpio)
+static int _get_gpio_direction(const struct omap_gpio *reg, int gpio)
 {
-	void *reg = bank->base;
-	u32 v;
-
-	reg += OMAP_GPIO_OE;
-
-	v = __raw_readl(reg);
-
-	if (v & (1 << gpio))
+	if (__raw_readl(&(reg->oe)) & (1 << gpio))
 		return OMAP_GPIO_DIR_IN;
 	else
 		return OMAP_GPIO_DIR_OUT;
 }
 
-static void _set_gpio_dataout(const struct gpio_bank *bank, int gpio,
+static void _set_gpio_dataout(const struct omap_gpio *reg, int gpio,
 				int enable)
 {
-	void *reg = bank->base;
-	u32 l = 0;
-
 	if (enable)
-		reg += OMAP_GPIO_SETDATAOUT;
-	else
-		reg += OMAP_GPIO_CLEARDATAOUT;
+		__raw_writel(1 << gpio, &(reg->setdataout));
 
-	l = 1 << gpio;
-	__raw_writel(l, reg);
+	else
+		__raw_writel(1 << gpio, &(reg->cleardataout));
 }
 
-static int _get_gpio_value(const struct gpio_bank *bank, int gpio)
+static int _get_gpio_value(const struct omap_gpio *reg, int gpio)
 {
-	void *reg = bank->base;
 	int input;
 
-	input = _get_gpio_direction(bank, gpio);
+	input = _get_gpio_direction(reg, gpio);
 	switch (input) {
 	case OMAP_GPIO_DIR_IN:
-		reg += OMAP_GPIO_DATAIN;
+		return __raw_readl(&(reg->datain)) & (1 << gpio);
 		break;
 	case OMAP_GPIO_DIR_OUT:
-		reg += OMAP_GPIO_DATAOUT;
+		return __raw_readl(&(reg->dataout)) & (1 << gpio);
 		break;
 	default:
 		return -1;
 	}
-
-	return (__raw_readl(reg) & (1 << gpio)) != 0;
 }
 
 #ifndef CONFIG_DM_GPIO
@@ -147,7 +129,7 @@ int gpio_set_value(unsigned gpio, int value)
 	if (check_gpio(gpio) < 0)
 		return -1;
 	bank = get_gpio_bank(gpio);
-	_set_gpio_dataout(bank, get_gpio_index(gpio), value);
+	_set_gpio_dataout(bank->base, get_gpio_index(gpio), value);
 
 	return 0;
 }
@@ -163,7 +145,7 @@ int gpio_get_value(unsigned gpio)
 		return -1;
 	bank = get_gpio_bank(gpio);
 
-	return _get_gpio_value(bank, get_gpio_index(gpio));
+	return _get_gpio_value(bank->base, get_gpio_index(gpio));
 }
 
 /**
@@ -177,7 +159,7 @@ int gpio_direction_input(unsigned gpio)
 		return -1;
 
 	bank = get_gpio_bank(gpio);
-	_set_gpio_direction(bank, get_gpio_index(gpio), 1);
+	_set_gpio_direction(bank->base, get_gpio_index(gpio), 1);
 
 	return 0;
 }
@@ -193,8 +175,8 @@ int gpio_direction_output(unsigned gpio, int value)
 		return -1;
 
 	bank = get_gpio_bank(gpio);
-	_set_gpio_dataout(bank, get_gpio_index(gpio), value);
-	_set_gpio_direction(bank, get_gpio_index(gpio), 0);
+	_set_gpio_dataout(bank->base, get_gpio_index(gpio), value);
+	_set_gpio_direction(bank->base, get_gpio_index(gpio), 0);
 
 	return 0;
 }
@@ -228,7 +210,7 @@ static int omap_gpio_direction_input(struct udevice *dev, unsigned offset)
 	struct gpio_bank *bank = dev_get_priv(dev);
 
 	/* Configure GPIO direction as input. */
-	_set_gpio_direction(bank, offset, 1);
+	_set_gpio_direction(bank->base, offset, 1);
 
 	return 0;
 }
@@ -239,8 +221,8 @@ static int omap_gpio_direction_output(struct udevice *dev, unsigned offset,
 {
 	struct gpio_bank *bank = dev_get_priv(dev);
 
-	_set_gpio_dataout(bank, offset, value);
-	_set_gpio_direction(bank, offset, 0);
+	_set_gpio_dataout(bank->base, offset, value);
+	_set_gpio_direction(bank->base, offset, 0);
 
 	return 0;
 }
@@ -250,7 +232,7 @@ static int omap_gpio_get_value(struct udevice *dev, unsigned offset)
 {
 	struct gpio_bank *bank = dev_get_priv(dev);
 
-	return _get_gpio_value(bank, offset);
+	return _get_gpio_value(bank->base, offset);
 }
 
 /* write GPIO OUT value to pin 'gpio' */
@@ -259,7 +241,7 @@ static int omap_gpio_set_value(struct udevice *dev, unsigned offset,
 {
 	struct gpio_bank *bank = dev_get_priv(dev);
 
-	_set_gpio_dataout(bank, offset, value);
+	_set_gpio_dataout(bank->base, offset, value);
 
 	return 0;
 }
@@ -269,7 +251,7 @@ static int omap_gpio_get_function(struct udevice *dev, unsigned offset)
 	struct gpio_bank *bank = dev_get_priv(dev);
 
 	/* GPIOF_FUNC is not implemented yet */
-	if (_get_gpio_direction(bank, offset) == OMAP_GPIO_DIR_OUT)
+	if (_get_gpio_direction(bank->base, offset) == OMAP_GPIO_DIR_OUT)
 		return GPIOF_OUTPUT;
 	else
 		return GPIOF_INPUT;
