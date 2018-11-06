@@ -60,6 +60,12 @@ include $(srctree)/scripts/Makefile.lib
 # Enable garbage collection of un-used sections for SPL
 KBUILD_CFLAGS += -ffunction-sections -fdata-sections
 LDFLAGS_FINAL += --gc-sections
+KBUILD_CFLAGS +=
+
+ifdef CONFIG_LTO_BUILD
+KBUILD_CFLAGS += -flto
+LDFLAGS_FINAL += --plugin=$(gcc --print-file-name=liblto_plugin.so)
+endif
 
 # FIX ME
 cpp_flags := $(KBUILD_CPPFLAGS) $(PLATFORM_CPPFLAGS) $(UBOOTINCLUDE) \

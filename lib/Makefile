@@ -116,3 +116,4 @@ obj-y += vsprintf.o strto.o strmhz.o
 endif
 
 subdir-ccflags-$(CONFIG_CC_OPTIMIZE_LIBS_FOR_SPEED) += -O2
+subdir-ccflags-y += -fno-lto

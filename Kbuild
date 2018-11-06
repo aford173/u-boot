@@ -57,7 +57,7 @@ endif
 always  += $(offsets-file)
 targets += arch/$(ARCH)/lib/asm-offsets.s
 
-CFLAGS_asm-offsets.o := -DDO_DEPS_ONLY
+CFLAGS_asm-offsets.o := -DDO_DEPS_ONLY -fno-lto
 
 # We use internal kbuild rules to avoid the "is up to date" message from make
 arch/$(ARCH)/lib/asm-offsets.s: arch/$(ARCH)/lib/asm-offsets.c FORCE

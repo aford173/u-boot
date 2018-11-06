@@ -348,8 +348,8 @@ LD		= $(CROSS_COMPILE)ld
 endif
 CC		= $(CROSS_COMPILE)gcc
 CPP		= $(CC) -E
-AR		= $(CROSS_COMPILE)ar
-NM		= $(CROSS_COMPILE)nm
+AR		= $(CROSS_COMPILE)gcc-ar
+NM		= $(CROSS_COMPILE)gcc-nm
 LDR		= $(CROSS_COMPILE)ldr
 STRIP		= $(CROSS_COMPILE)strip
 OBJCOPY		= $(CROSS_COMPILE)objcopy
@@ -603,7 +603,7 @@ LDPPFLAGS	+= -ansi
 endif
 
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS	+= -Os
+KBUILD_CFLAGS	+= -Os -flto
 else
 KBUILD_CFLAGS	+= -O2
 endif
@@ -865,7 +865,7 @@ ifeq ($(CONFIG_MPC85xx)$(CONFIG_OF_SEPARATE),yy)
 ALL-y += u-boot-with-dtb.bin
 endif
 
-LDFLAGS_u-boot += $(LDFLAGS_FINAL)
+LDFLAGS_u-boot += $(LDFLAGS_FINAL) -flto
 
 # Avoid 'Not enough room for program headers' error on binutils 2.28 onwards.
 LDFLAGS_u-boot += $(call ld-option, --no-dynamic-linker)

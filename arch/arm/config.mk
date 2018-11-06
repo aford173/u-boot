@@ -14,11 +14,16 @@ endif
 CFLAGS_NON_EFI := -fno-pic -ffixed-r9 -ffunction-sections -fdata-sections
 CFLAGS_EFI := -fpic -fshort-wchar
 
-LDFLAGS_FINAL += --gc-sections
+LDFLAGS_FINAL += --gc-sections -flto
 PLATFORM_RELFLAGS += -ffunction-sections -fdata-sections \
 		     -fno-common -ffixed-r9
 PLATFORM_RELFLAGS += $(call cc-option, -msoft-float) \
       $(call cc-option,-mshort-load-bytes,$(call cc-option,-malignment-traps,))
+
+#ifdef CONFIG_LTO_BUILD
+PLATFORM_RELFLAGS += -flto
+LDFLAGS_FINAL += --plugin=$(gcc --print-file-name=liblto_plugin.so)
+#endif
 
 # LLVM support
 LLVM_RELFLAGS		:= $(call cc-option,-mllvm,) \
