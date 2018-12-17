@@ -137,12 +137,6 @@ const struct musb_platform_ops omap2430_ops = {
 
 #if CONFIG_IS_ENABLED(DM_USB)
 
-static const struct udevice_id omap2430_musb_ids[] = {
-	{ .compatible = "ti,omap3-musb" },
-	{ .compatible = "ti,omap4-musb" },
-	{ }
-};
-
 struct omap2430_musb_platdata {
 	void *base;
 	void *ctrl_mod_base;
@@ -203,7 +197,7 @@ static int omap2430_musb_ofdata_to_platdata(struct udevice *dev)
 	return 0;
 }
 
-#ifdef CONFIG_USB_MUSB_HOST
+#ifndef CONFIG_USB_MUSB_GADGET
 static int omap2430_musb_probe(struct udevice *dev)
 {
 	struct musb_host_data *host = dev_get_priv(dev);
@@ -241,7 +235,7 @@ static int omap2430_musb_remove(struct udevice *dev)
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 static int omap2430_musb_host_ofdata_to_platdata(struct udevice *dev)
 {
-	struct ti_musb_platdata *platdata = dev_get_platdata(dev);
+	struct omap2430_musb_platdata *platdata = dev_get_platdata(dev);
 	const void *fdt = gd->fdt_blob;
 	int node = dev_of_offset(dev);
 	int ret;
@@ -261,7 +255,6 @@ static int omap2430_musb_host_ofdata_to_platdata(struct udevice *dev)
 U_BOOT_DRIVER(omap2430_musb) = {
 	.name	= "omap2430-musb",
 	.id		= UCLASS_USB,
-	.of_match = omap2430_musb_ids,
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 	.ofdata_to_platdata = omap2430_musb_host_ofdata_to_platdata,
 #endif
@@ -272,6 +265,130 @@ U_BOOT_DRIVER(omap2430_musb) = {
 	.priv_auto_alloc_size = sizeof(struct musb_host_data),
 };
 
+#else
+
+struct omap2430_musb_peripheral {
+	struct musb *periph;
+};
+
+#if CONFIG_IS_ENABLED(OF_CONTROL)
+static int omap2430_musb_peripheral_ofdata_to_platdata(struct udevice *dev)
+{
+	struct ti_musb_platdata *platdata = dev_get_platdata(dev);
+	const void *fdt = gd->fdt_blob;
+	int node = dev_of_offset(dev);
+	int ret;
+
+	ret = omap2430_musb_ofdata_to_platdata(dev);
+	if (ret) {
+		pr_err("platdata dt parse error\n");
+		return ret;
+	}
+	platdata->plat.mode = MUSB_PERIPHERAL;
+
+	return 0;
+}
 #endif
+
+int dm_usb_gadget_handle_interrupts(struct udevice *dev)
+{
+	struct omap2430_musb_peripheral *priv = dev_get_priv(dev);
+
+	priv->periph->isr(0, priv->periph);
+
+	return 0;
+}
+
+static int omap2430_musb_peripheral_probe(struct udevice *dev)
+{
+	struct omap2430_musb_peripheral *priv = dev_get_priv(dev);
+	struct omap2430_musb_platdata *platdata = dev_get_platdata(dev);
+	struct omap_musb_board_data *otg_board_data;
+	int ret;
+
+	otg_board_data = &platdata->otg_board_data;
+	priv->periph = musb_init_controller(&platdata->plat,
+					    (struct device *)otg_board_data,
+					    platdata->base);
+	if (!priv->periph)
+		return -EIO;
+
+	musb_gadget_setup(priv->periph);
+	return usb_add_gadget_udc((struct device *)dev, &priv->periph->g);
+}
+
+static int omap2430_musb_peripheral_remove(struct udevice *dev)
+{
+	struct omap2430_musb_peripheral *priv = dev_get_priv(dev);
+
+	usb_del_gadget_udc(&priv->periph->g);
+
+	return 0;
+}
+
+U_BOOT_DRIVER(omap2430_musb_peripheral) = {
+	.name	= "ti-musb-peripheral",
+	.id	= UCLASS_USB_GADGET_GENERIC,
+#if CONFIG_IS_ENABLED(OF_CONTROL)
+	.ofdata_to_platdata = omap2430_musb_peripheral_ofdata_to_platdata,
+#endif
+	.probe = omap2430_musb_peripheral_probe,
+	.remove = omap2430_musb_peripheral_remove,
+	.ops	= &musb_usb_ops,
+	.platdata_auto_alloc_size = sizeof(struct omap2430_musb_platdata),
+	.priv_auto_alloc_size = sizeof(struct omap2430_musb_peripheral),
+	.flags = DM_FLAG_PRE_RELOC,
+};
+#endif
+
+static int ti_musb_wrapper_bind(struct udevice *dev)
+{
+	const void *fdt = gd->fdt_blob;
+	int node = dev_of_offset(dev);
+	int ret;
+	const char *name = fdt_get_name(fdt, node, NULL);
+	enum usb_dr_mode dr_mode = usb_get_dr_mode(dev_of_offset(dev));
+
+	switch (dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+		/* Bind MUSB device */
+		ret = device_bind_driver_to_node(dev,
+						 "ti-musb-peripheral",
+						 name,
+						 offset_to_ofnode(node),
+						 &dev);
+		if (ret)
+			pr_err("musb - not able to bind usb peripheral node\n");
+		break;
+	case USB_DR_MODE_HOST:
+		/* Bind MUSB host */
+		ret = device_bind_driver_to_node(dev,
+						 "omap2430-musb",
+						 name,
+						 offset_to_ofnode(node),
+						 &dev);
+		if (ret)
+			pr_err("musb - not able to bind usb host node\n");
+		break;
+	default:
+		printf("dr_mode not either PERIPHERAL or HOST");
+		break;
+	};
+
+	return 0;
+}
+
+static const struct udevice_id omap2430_musb_ids[] = {
+	{ .compatible = "ti,omap3-musb" },
+	{ .compatible = "ti,omap4-musb" },
+	{ }
+};
+
+U_BOOT_DRIVER(ti_musb_wrapper) = {
+	.name	= "ti-musb-wrapper",
+	.id	= UCLASS_MISC,
+	.of_match = omap2430_musb_ids,
+	.bind = ti_musb_wrapper_bind,
+};
 
 #endif /* CONFIG_IS_ENABLED(DM_USB) */

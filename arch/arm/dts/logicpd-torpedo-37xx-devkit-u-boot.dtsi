@@ -20,3 +20,6 @@
       status = "disabled";
 };
 
+&usb_otg_hs {
+	dr_mode = "host";
+};
