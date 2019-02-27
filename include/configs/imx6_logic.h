@@ -46,11 +46,11 @@
 	"mmcroot=" CONFIG_MMCROOT " rootwait rw\0" \
 	"nandroot=ubi0:rootfs rootfstype=ubifs\0" \
 	"mmcargs=setenv bootargs console=${console},${baudrate}" \
-	" root=${mmcroot} ${mtdparts}\0" \
+	" root=${mmcroot} ${mtdparts} ${optargs}\0" \
 	"nandargs=setenv bootargs console=${console},${baudrate}" \
-	" ubi.mtd=fs root=${nandroot} ${mtdparts}\0" \
+	" ubi.mtd=fs root=${nandroot} ${mtdparts} ${optargs}\0" \
 	"ramargs=setenv bootargs console=${console},${baudrate}" \
-	" root=/dev/ram rw ${mtdparts}\0"                    \
+	" root=/dev/ram rw ${mtdparts} ${optargs}\0"                    \
 	"loadbootscript=" \
 	"fatload mmc ${mmcdev}:${mmcpart} ${loadaddr} ${script};\0" \
 	"bootscript=echo Running bootscript from mmc ...;" \
@@ -68,8 +68,8 @@
 	"nandboot=echo Booting from nand ...; " \
 	" run nandargs;" \
 	" nand read ${loadaddr} kernel ${kernelsize};" \
-	" nand read ${fdt_addr} dtb;" \
-	" bootz ${loadaddr} - ${fdt_addr}\0" \
+	" nand read ${fdt_addr_r} dtb;" \
+	" bootz ${loadaddr} - ${fdt_addr_r}\0" \
 	"nandramboot=echo Booting RAMdisk from nand ...; " \
 	" nand read ${ramdisk_addr_r} fs ${ramdisksize};" \
 	" nand read ${loadaddr} kernel ${kernelsize};" \
@@ -88,7 +88,7 @@
 	"fi; " \
 	"${get_cmd} ${image}; " \
 	"if test ${boot_fdt} = yes || test ${boot_fdt} = try; then " \
-		"if ${get_cmd} ${fdt_addr} ${fdt_file}; then " \
+		"if ${get_cmd} ${fdt_addr_r} ${fdt_file}; then " \
 			"bootz ${loadaddr} - ${fdt_addr}; " \
 		"else " \
 			"if test ${boot_fdt} = try; then " \
@@ -144,6 +144,8 @@
 #define CONFIG_SYS_NAND_U_BOOT_START	CONFIG_SYS_TEXT_BASE
 #define CONFIG_SYS_NAND_U_BOOT_OFFS	0x200000
 #define CONFIG_SYS_NAND_SPL_KERNEL_OFFS 0x00500000
+#define CONFIG_SYS_NAND_USE_FLASH_BBT
+
 /* MTD device */
 
 /* DMA stuff, needed for GPMI/MXS NAND support */
@@ -162,7 +164,7 @@
 /* Falcon Mode */
 #define CONFIG_SPL_FS_LOAD_ARGS_NAME	"args"
 #define CONFIG_SPL_FS_LOAD_KERNEL_NAME	"uImage"
-#define CONFIG_SYS_SPL_ARGS_ADDR       0x15000000
+#define CONFIG_SYS_SPL_ARGS_ADDR       0x18000000
 
 /* Falcon Mode - MMC support: args@1MB kernel@2MB */
 #define CONFIG_SYS_MMCSD_RAW_MODE_ARGS_SECTOR  0x800   /* 1MB */
