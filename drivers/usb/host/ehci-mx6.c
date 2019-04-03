@@ -556,6 +556,11 @@ static int ehci_usb_probe(struct udevice *dev)
 
 static const struct udevice_id mx6_usb_ids[] = {
 	{ .compatible = "fsl,imx27-usb" },
+	{ .compatible = "fsl,imx6q-usb" },
+	{ .compatible = "fsl,imx6sl-usb" },
+	{ .compatible = "fsl,imx6sx-usb" },
+	{ .compatible = "fsl,imx6ul-usb" },
+	{ .compatible = "fsl,imx7d-usb" },
 	{ }
 };
 
