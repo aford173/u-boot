@@ -141,6 +141,7 @@ config USB_EHCI_MX5
 
 config USB_EHCI_MX6
 	bool "Support for i.MX6 on-chip EHCI USB controller"
+	select MISC
 	depends on ARCH_MX6
 	default y
 	---help---

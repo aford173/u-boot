@@ -19,6 +19,7 @@
 #include <asm/mach-types.h>
 #include <power/regulator.h>
 #include <linux/usb/otg.h>
+#include <dm/lists.h>
 
 #include "ehci.h"
 
@@ -567,7 +568,6 @@ static const struct udevice_id mx6_usb_ids[] = {
 U_BOOT_DRIVER(usb_mx6) = {
 	.name	= "ehci_mx6",
 	.id	= UCLASS_USB,
-	.of_match = mx6_usb_ids,
 	.ofdata_to_platdata = ehci_usb_ofdata_to_platdata,
 	.probe	= ehci_usb_probe,
 	.remove = ehci_deregister,
@@ -576,4 +576,30 @@ U_BOOT_DRIVER(usb_mx6) = {
 	.priv_auto_alloc_size = sizeof(struct ehci_mx6_priv_data),
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };
+
+static int mx6_usb_wrapper_bind(struct udevice *dev)
+{
+	const void *fdt = gd->fdt_blob;
+	int node = dev_of_offset(dev);
+	const char *name = fdt_get_name(fdt, node, NULL);
+	int ret;
+
+	ret = device_bind_driver_to_node(dev,
+					"ehci_mx6",
+					name,
+					offset_to_ofnode(node),
+					&dev);
+	if (ret)
+		pr_err("mx6_usb - Unable to bind USB host node\n");
+
+	return ret;
+}
+
+U_BOOT_DRIVER(usb_mx6_wrapper) = {
+	.name	= "mx6-usb-wrapper",
+	.id	= UCLASS_MISC,
+	.of_match = mx6_usb_ids,
+	.bind = mx6_usb_wrapper_bind,
+};
+
 #endif
