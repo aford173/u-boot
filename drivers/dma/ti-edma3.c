@@ -565,6 +565,7 @@ static const struct dma_ops ti_edma3_ops = {
 
 static const struct udevice_id ti_edma3_ids[] = {
 	{ .compatible = "ti,edma3" },
+	{ .compatible = "ti,edma3-tpcc" },
 	{ }
 };
 

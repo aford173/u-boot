@@ -91,6 +91,15 @@ int set_cpu_clk_info(void)
 	return 0;
 }
 
+void enable_edma3_clocks(void)
+{
+
+}
+
+void disable_edma3_clocks(void)
+{
+
+}
 /*
  * Initializes on-chip ethernet controllers.
  * to override, implement board_eth_init()
