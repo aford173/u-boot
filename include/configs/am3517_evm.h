@@ -28,6 +28,9 @@
  * Enable CONFIG_USB_MUSB_GADGET for Device functionalities.
  */
 
+/* EHCI */
+#define CONFIG_OMAP_EHCI_PHY1_RESET_GPIO	57
+
 #ifdef CONFIG_USB_MUSB_AM35X
 
 #ifdef CONFIG_USB_MUSB_HOST

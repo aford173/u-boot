@@ -47,6 +47,7 @@ int spl_start_uboot(void)
 #endif
 #endif
 
+
 /*
  * Routine: board_init
  * Description: Early hardware init.

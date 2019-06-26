@@ -9,7 +9,6 @@
  *	Shashi Ranjan <shashiranjanmca05@gmail.com>
  *
  */
-
 #include <common.h>
 #include <usb.h>
 #include <usb/ulpi.h>
@@ -18,6 +17,10 @@
 #include <asm/gpio.h>
 #include <asm/arch/ehci.h>
 #include <asm/ehci-omap.h>
+#include <dm.h>
+#include <dm/device-internal.h>
+#include <dm/lists.h>
+#include <power/regulator.h>
 
 #include "ehci.h"
 
@@ -177,8 +180,13 @@ int omap_ehci_hcd_stop(void)
  * Based on "drivers/usb/host/ehci-omap.c" from Linux 3.1
  * See there for additional Copyrights.
  */
+#if !CONFIG_IS_ENABLED(DM_USB) || !CONFIG_IS_ENABLED(OF_CONTROL)
+
 int omap_ehci_hcd_init(int index, struct omap_usbhs_board_data *usbhs_pdata,
 		       struct ehci_hccr **hccr, struct ehci_hcor **hcor)
+#else
+int omap_ehci_hcd_init(int index, struct omap_usbhs_board_data *usbhs_pdata)
+#endif
 {
 	int ret;
 	unsigned int i, reg = 0, rev = 0;
@@ -285,10 +293,130 @@ int omap_ehci_hcd_init(int index, struct omap_usbhs_board_data *usbhs_pdata,
 	for (i = 0; i < OMAP_HS_USB_PORTS; i++)
 		if (is_ehci_phy_mode(usbhs_pdata->port_mode[i]))
 			omap_ehci_soft_phy_reset(i);
-
+#if !CONFIG_IS_ENABLED(DM_USB) || !CONFIG_IS_ENABLED(OF_CONTROL)
 	*hccr = (struct ehci_hccr *)(OMAP_EHCI_BASE);
 	*hcor = (struct ehci_hcor *)(OMAP_EHCI_BASE + 0x10);
+#endif
 
 	debug("OMAP EHCI init done\n");
 	return 0;
 }
+
+#if CONFIG_IS_ENABLED(DM_USB)
+
+struct ehci_omap_priv_data {
+	struct ehci_ctrl ctrl;
+	struct omap_ehci *ehci;
+#ifdef CONFIG_DM_REGULATOR
+	struct udevice *vbus_supply;
+#endif
+	enum usb_init_type init_type;
+	int portnr;
+	struct phy phy[OMAP_HS_USB_PORTS];
+	int nports;
+};
+
+static struct omap_usbhs_board_data usbhs_bdata = {
+	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
+};
+
+/* Match this order enums usbhs_omap_port_mode */
+static char *phy_strings[] = {
+	"",
+	"ehci-phy",
+	"ehci-tll",
+	"ehci-hsic",
+};
+
+static int find_phy_mode(const char *phy_type) {
+	int i;
+
+	for (i = 0; i < OMAP_HS_USB_PORTS; i++) {
+		if (!strcmp(phy_type, phy_strings[i]))
+			return i;
+	}
+	return 0;
+}
+
+static const struct ehci_ops omap_ehci_ops = {
+};
+
+static int ehci_usb_probe(struct udevice *dev)
+{
+	struct usb_platdata *plat = dev_get_platdata(dev);
+	const void *fdt = gd->fdt_blob;
+	struct omap_ehci *ehci;
+	struct ehci_omap_priv_data *priv = dev_get_priv(dev);
+	struct ehci_hccr *hccr;
+	struct ehci_hcor *hcor;
+	ofnode node;
+	ofnode parent_node = dev->node;
+	int ret = -1;
+	int off, i;
+	const char *mode;
+	char prop[11];
+
+	priv->ehci = (struct omap_ehci *) devfdt_get_addr(dev);
+	priv->portnr = dev->seq;
+	priv->init_type = plat->init_type;
+
+	/* Go through each port portX-mode to determing phy mode */
+	for (i = 0; i < 3; i++) {
+			snprintf(prop, sizeof(prop), "port%d-mode", i + 1);
+			mode = dev_read_string(dev, prop);
+			if (mode) {
+				usbhs_bdata.port_mode[i] = find_phy_mode(mode);
+			}
+	}
+
+	ofnode_for_each_subnode(node, parent_node) {
+		/* Locate node for ti,ehci-omap */
+		off = ofnode_to_offset(node);
+		ret = fdt_node_check_compatible(fdt, off, "ti,ehci-omap");
+
+		if (!ret) {
+			/* If ehci is located, point ehci to the corresponding address */
+			ehci = (struct omap_ehci *) ofnode_get_addr(node);
+			hccr = (struct ehci_hccr *) &ehci->hccapbase;
+			hcor = (struct ehci_hcor *) &ehci->usbcmd;
+
+			/* Do the actual ehci initialization */
+			/* The usbhs_bdata contains the port information */
+			omap_ehci_hcd_init(0, &usbhs_bdata);
+			ret = ehci_register(dev, hccr, hcor, &omap_ehci_ops, 0, USB_INIT_HOST);
+		}
+	}
+
+	return ret;
+}
+
+static const struct udevice_id omap_ehci_dt_ids[] = {
+	{ .compatible = "ti,usbhs-host" },
+	{ }
+};
+
+static int ehci_usb_ofdata_to_platdata(struct udevice *dev)
+{
+	struct usb_platdata *plat = dev_get_platdata(dev);
+
+	plat->init_type = USB_INIT_HOST;
+
+	return 0;
+}
+
+U_BOOT_DRIVER(usb_omaphs_host) = {
+	.name	= "usbhs-host",
+	.id	= UCLASS_USB,
+	.of_match = omap_ehci_dt_ids,
+	.ofdata_to_platdata = ehci_usb_ofdata_to_platdata,
+	.probe	= ehci_usb_probe,
+	.remove = ehci_deregister,
+	.ops	= &ehci_usb_ops,
+	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
+	.priv_auto_alloc_size = sizeof(struct ehci_omap_priv_data),
+	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
+};
+
+#endif

@@ -15,6 +15,7 @@
 	ocp@68000000 {
 		/delete-node/ bandgap@48002524;
 	};
+	
 };
 
 &gpio1 {
