@@ -226,7 +226,7 @@ config SANDBOX_SPI
 		cs-gpios = <0>, <&gpio_a 0>;
 		flash@0 {
 			reg = <0>;
-			compatible = "spansion,m25p16", "sandbox,spi-flash";
+			compatible = "spansion,m25p16", "jedec,spi-nor";
 			spi-max-frequency = <40000000>;
 			sandbox,filename = "spi.bin";
 		};
@@ -292,6 +292,14 @@ config TI_QSPI
 	help
 	  Enable the TI Quad-SPI (QSPI) driver for DRA7xx and AM43xx evms.
 	  This driver support spi flash single, quad and memory reads.
+
+config UNIPHIER_SPI
+	bool "Socionext UniPhier SPI driver"
+	depends on ARCH_UNIPHIER
+	help
+	  Enable the Socionext UniPhier SPI driver. This driver can
+	  be used to access SPI chips on platforms embedding this
+	  UniPhier IP core.
 
 config XILINX_SPI
 	bool "Xilinx SPI driver"
