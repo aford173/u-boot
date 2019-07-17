@@ -14,6 +14,13 @@
 	nand {
 		compatible = "ti,davinci-nand";
 	};
+	aliases {
+		/delete-property/ serial0;
+		/delete-property/ serial1;
+	};
+
+	/delete-node/ panel;
+	/delete-node/ sound;
 };
 
 &eth0 {
@@ -35,3 +42,28 @@
 &spi1 {
 	u-boot,dm-spl;
 };
+
+/delete-node/ &backlight;
+/delete-node/ &serial0_rtscts_pins;
+/delete-node/ &serial0_rxtx_pins;
+/delete-node/ &serial1_rtscts_pins;
+/delete-node/ &serial1_rxtx_pins;
+/delete-node/ &serial2_rtscts_pins;
+/delete-node/ &ehrpwm0a_pins;
+/delete-node/ &ehrpwm0b_pins;
+/delete-node/ &ehrpwm1a_pins;
+/delete-node/ &ehrpwm1b_pins;
+/delete-node/ &ecap0_pins;
+/delete-node/ &ecap1_pins;
+/delete-node/ &ecap2_pins;
+/delete-node/ &lcd_pins;
+/delete-node/ &spi0_pins;
+/delete-node/ &spi0_cs0_pin;
+/delete-node/ &spi0_cs3_pin;
+/delete-node/ &mcasp0;
+/delete-node/ &mcasp0_pins;
+/delete-node/ &serial0;
+/delete-node/ &serial1;
+/delete-node/ &vpif;
+/delete-node/ &vpif_display_pins;
+/delete-node/ &vpif_capture_pins;
