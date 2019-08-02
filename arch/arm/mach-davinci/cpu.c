@@ -89,3 +89,13 @@ int set_cpu_clk_info(void)
 	gd->bd->bi_dsp_freq = 0;
 	return 0;
 }
+
+void enable_edma3_clocks(void)
+{
+	lpsc_on(DAVINCI_LPSC_DMAX);
+}
+
+void disable_edma3_clocks(void)
+{
+	lpsc_disable(DAVINCI_LPSC_DMAX);
+}

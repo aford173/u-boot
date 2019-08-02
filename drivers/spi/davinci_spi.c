@@ -15,6 +15,8 @@
 #include <asm/arch/hardware.h>
 #include <dm.h>
 #include <dm/platform_data/spi_davinci.h>
+#include <dma-uclass.h>
+
 
 /* SPIGCR0 */
 #define SPIGCR0_SPIENA_MASK	0x1
@@ -548,6 +550,7 @@ static int davinci_ofdata_to_platadata(struct udevice *bus)
 {
 	struct davinci_spi_platdata *plat = bus->platdata;
 	fdt_addr_t addr;
+	int ret;
 
 	addr = devfdt_get_addr(bus);
 	if (addr == FDT_ADDR_T_NONE)
@@ -556,6 +559,10 @@ static int davinci_ofdata_to_platadata(struct udevice *bus)
 	plat->regs = (struct davinci_spi_regs *)addr;
 	plat->num_cs = fdtdec_get_int(gd->fdt_blob, dev_of_offset(bus), "num-cs", 4);
 
+	ret = dma_get_by_name(bus, "tx", &plat->dma_tx);
+	printf("dma ret %d\n", ret);
+	ret = dma_get_by_name(bus, "rx", &plat->dma_rx);
+	printf("dma ret %d\n", ret);
 	return 0;
 }
 

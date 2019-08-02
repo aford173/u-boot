@@ -554,6 +554,9 @@ static int ti_edma3_probe(struct udevice *dev)
 {
 	struct dma_dev_priv *uc_priv = dev_get_uclass_priv(dev);
 
+	fdt_addr_t addr = devfdt_get_addr(dev);
+	printf("ti_edma3_probe: addr = %lu\n", addr);
+
 	uc_priv->supported = DMA_SUPPORTS_MEM_TO_MEM;
 
 	return 0;
@@ -565,6 +568,7 @@ static const struct dma_ops ti_edma3_ops = {
 
 static const struct udevice_id ti_edma3_ids[] = {
 	{ .compatible = "ti,edma3" },
+	{ .compatible = "ti,edma3-tpcc" },
 	{ }
 };
 
