@@ -144,7 +144,18 @@ static int initr_reloc_global_data(void)
 	 */
 	fixup_cpu();
 #endif
-#if !defined(CONFIG_ENV_ADDR) || defined(ENV_IS_EMBEDDED)
+#if (defined(CONFIG_ENV_IS_NOWHERE) || defined(CONFIG_ENV_IS_IN_EEPROM) || \
+		defined(CONFIG_ENV_IS_IN_FAT) || \
+		defined(CONFIG_ENV_IS_IN_EXT4) || \
+		defined(CONFIG_ENV_IS_IN_MMC) || \
+		defined(CONFIG_ENV_IS_IN_NAND) || \
+		defined(CONFIG_ENV_IS_IN_UBI)) || \
+	((defined(CONFIG_ENV_IS_IN_FLASH) || \
+	  defined(CONFIG_ENV_IS_IN_NVRAM) || \
+	  defined(CONFIG_ENV_IS_IN_ONENAND) || \
+	  defined(CONFIG_ENV_IS_IN_REMOTE) || \
+	  defined(CONFIG_ENV_IS_IN_SPI_FLASH)) && \
+		(CONFIG_ENV_ADDR == 0x0)) || defined(ENV_IS_EMBEDDED)
 	/*
 	 * Relocate the early env_addr pointer unless we know it is not inside
 	 * the binary. Some systems need this and for the rest, it doesn't hurt.

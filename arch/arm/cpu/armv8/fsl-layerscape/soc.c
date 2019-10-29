@@ -838,7 +838,7 @@ int board_late_init(void)
 	 * check if gd->env_addr is default_environment; then setenv bootcmd
 	 * and mcinitcmd.
 	 */
-#if !defined(CONFIG_ENV_ADDR) || defined(ENV_IS_EMBEDDED)
+#if (CONFIG_ENV_ADDR == 0x0) || defined(ENV_IS_EMBEDDED)
 	if (gd->env_addr == (ulong)&default_environment[0]) {
 #else
 	if (gd->env_addr + gd->reloc_off == (ulong)&default_environment[0]) {
