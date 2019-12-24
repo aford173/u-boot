@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2017 NXP
+ * Copyright 2019 Logic PD, Inc
+ */
+
+/dts-v1/;
+
+#include "imx8mm.dtsi"
+#include "lpd-imx8mm-som.dtsi"
+#include "lpd-imx8mm-baseboard.dtsi"
+
+/ {
+	model = "Logic PD i.MX8M mini Developent Kit";
+	compatible = "fsl,imx8mm";
+
+	chosen {
+		stdout-path = &uart2;
+	};
+};
