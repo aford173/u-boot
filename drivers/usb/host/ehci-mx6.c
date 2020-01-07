@@ -221,7 +221,7 @@ struct usbnc_regs {
 };
 #endif
 
-#elif defined(CONFIG_MX7)
+#elif defined(CONFIG_USB_EHCI_MX7)
 struct usbnc_regs {
 	u32 ctrl1;
 	u32 ctrl2;
@@ -271,7 +271,7 @@ static void usb_oc_config(int index)
 	struct usbnc_regs *usbnc = (struct usbnc_regs *)(USB_BASE_ADDR +
 			USB_OTHERREGS_OFFSET);
 	void __iomem *ctrl = (void __iomem *)(&usbnc->ctrl[index]);
-#elif defined(CONFIG_MX7) || defined(CONFIG_MX7ULP)
+#elif defined(CONFIG_USB_EHCI_MX7) || defined(CONFIG_MX7ULP)
 	struct usbnc_regs *usbnc = (struct usbnc_regs *)(USB_BASE_ADDR +
 			(0x10000 * index) + USBNC_OFFSET);
 	void __iomem *ctrl = (void __iomem *)(&usbnc->ctrl1);
@@ -370,7 +370,7 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 	enum usb_init_type type;
 #if defined(CONFIG_MX6)
 	u32 controller_spacing = 0x200;
-#elif defined(CONFIG_MX7) || defined(CONFIG_MX7ULP)
+#elif defined(CONFIG_USB_EHCI_MX7) || defined(CONFIG_MX7ULP)
 	u32 controller_spacing = 0x10000;
 #endif
 	struct usb_ehci *ehci = (struct usb_ehci *)(USB_BASE_ADDR +
@@ -492,7 +492,7 @@ static int ehci_usb_phy_mode(struct udevice *dev)
 			plat->init_type = USB_INIT_DEVICE;
 		else
 			plat->init_type = USB_INIT_HOST;
-	} else if (is_mx7()) {
+	} else if (is_mx7() || is_imx8mm()) {
 		phy_status = (void __iomem *)(addr +
 					      USBNC_PHY_STATUS_OFFSET);
 		val = readl(phy_status);
@@ -611,8 +611,8 @@ static int ehci_usb_probe(struct udevice *dev)
 
 	mdelay(10);
 
-	hccr = (struct ehci_hccr *)((uint32_t)&ehci->caplength);
-	hcor = (struct ehci_hcor *)((uint32_t)hccr +
+	hccr = (struct ehci_hccr *)(&ehci->caplength);
+	hcor = (struct ehci_hcor *)(hccr +
 			HC_LENGTH(ehci_readl(&(hccr)->cr_capbase)));
 
 	return ehci_register(dev, hccr, hcor, &mx6_ehci_ops, 0, priv->init_type);

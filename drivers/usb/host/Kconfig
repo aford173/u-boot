@@ -92,7 +92,7 @@ endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
 	bool "EHCI HCD (USB 2.0) support"
-	default y if ARCH_MX5 || ARCH_MX6
+	default y if ARCH_MX5 || ARCH_MX6 || ARCH_IMX8M
 	select USB_HOST
 	---help---
 	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
@@ -134,7 +134,7 @@ config USB_EHCI_MX5
 	  Enables support for the on-chip EHCI controller on i.MX5 SoCs.
 
 config USB_EHCI_MX6
-	bool "Support for i.MX6/i.MX7ULP on-chip EHCI USB controller"
+	bool "Support for i.MX6/i.MX7ULP/i.MX8M on-chip EHCI USB controller"
 	depends on ARCH_MX6 || ARCH_MX7ULP
 	default y
 	---help---
@@ -142,7 +142,7 @@ config USB_EHCI_MX6
 
 config USB_EHCI_MX7
 	bool "Support for i.MX7 on-chip EHCI USB controller"
-	depends on ARCH_MX7
+	depends on ARCH_MX7 || ARCH_IMX8M
 	default y
 	---help---
 	  Enables support for the on-chip EHCI controller on i.MX7 SoCs.
