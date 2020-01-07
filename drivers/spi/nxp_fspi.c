@@ -32,7 +32,7 @@
  *     Boris Brezillon <bbrezillon@kernel.org>
  *     Frieder Schrempf <frieder.schrempf@kontron.de>
  */
-
+#define DEBUG
 #include <common.h>
 #include <asm/io.h>
 #include <malloc.h>
@@ -310,6 +310,14 @@ struct nxp_fspi_devtype_data {
 };
 
 static const struct nxp_fspi_devtype_data lx2160a_data = {
+	.rxfifo = SZ_512,       /* (64  * 64 bits)  */
+	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
+	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
+	.quirks = 0,
+	.little_endian = true,  /* little-endian    */
+};
+
+static const struct nxp_fspi_devtype_data imx8mm_data = {
 	.rxfifo = SZ_512,       /* (64  * 64 bits)  */
 	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
 	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
@@ -872,12 +880,10 @@ static int nxp_fspi_default_setup(struct nxp_fspi *f)
 static int nxp_fspi_probe(struct udevice *bus)
 {
 	struct nxp_fspi *f = dev_get_priv(bus);
-
+printf("nxp_fspi_probe\n");
 	f->devtype_data =
 		(struct nxp_fspi_devtype_data *)dev_get_driver_data(bus);
-	nxp_fspi_default_setup(f);
-
-	return 0;
+	return nxp_fspi_default_setup(f);
 }
 
 static int nxp_fspi_claim_bus(struct udevice *dev)
@@ -982,6 +988,7 @@ static const struct dm_spi_ops nxp_fspi_ops = {
 
 static const struct udevice_id nxp_fspi_ids[] = {
 	{ .compatible = "nxp,lx2160a-fspi", .data = (ulong)&lx2160a_data, },
+	{ .compatible = "nxp,imx8mm-fspi", .data = (ulong)&imx8mm_data, },
 	{ }
 };
 
