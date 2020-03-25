@@ -6,3 +6,22 @@ config VIDEO_IPUV3
 	  This enables framebuffer driver for i.MX processors working
 	  on the IPUv3(Image Processing Unit) internal graphic processor.
 
+config VIDEO_IMXDCSS
+	bool "i.MX8 DCSS display support"
+	default n
+	depends on VIDEO && IMX8M
+	help
+	  Support for DCSS display controller for i.MX8 processors.
+	  
+config IMX_MIPI_DSI_BRIDGE
+	bool
+	help
+	  Enable MIPI DSI bridge interface for display controller.
+
+config IMX_SEC_MIPI_DSI
+	bool "i.MX Samsung's MIPI DSI"
+	default n
+	select IMX_MIPI_DSI_BRIDGE
+	depends on VIDEO && (IMX8MM || MX7)
+	help
+	  Support for i.MX7 and i.MX8MM MIPI DSI controller.

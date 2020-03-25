@@ -5,6 +5,7 @@
 
 #include <linux/fb.h>
 #include <ipu_pixfmt.h>
+#include <asm/arch/video_common.h>
 
 struct display_info_t {
 	int	bus;

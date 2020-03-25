@@ -68,6 +68,8 @@ obj-$(CONFIG_VIDEO_SIMPLE) += simplefb.o
 obj-$(CONFIG_VIDEO_TEGRA20) += tegra.o
 obj-$(CONFIG_VIDEO_VCXK) += bus_vcxk.o
 obj-$(CONFIG_VIDEO_VESA) += vesa.o
+obj-$(CONFIG_IMX_SEC_MIPI_DSI) += sec_mipi_dsim.o
+obj-$(CONFIG_IMX_MIPI_DSI_BRIDGE) += imx_mipi_dsi_bridge.o
 
 obj-y += bridge/
 obj-y += sunxi/

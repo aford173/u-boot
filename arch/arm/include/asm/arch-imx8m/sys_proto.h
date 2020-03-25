@@ -14,4 +14,5 @@ void restore_boot_params(void);
 extern unsigned long rom_pointer[];
 enum boot_device get_boot_device(void);
 bool is_usb_boot(void);
+bool check_dcss_fused(void);
 #endif
