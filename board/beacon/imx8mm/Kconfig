@@ -9,6 +9,10 @@ config SYS_VENDOR
 config SYS_CONFIG_NAME
 	default "imx8mm_beacon"
 
+config IMX8MM_BEACON_4GB_LPDDR
+	bool "Enable 4GB LPDDR"
+	default n
+
 config IMX_CONFIG
 	default "board/beacon/imx8mm/imximage-8mm-lpddr4.cfg"
 
