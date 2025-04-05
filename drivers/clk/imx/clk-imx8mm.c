@@ -183,17 +183,18 @@ static u32 share_count_nand;
 
 static int imx8mm_clk_probe(struct udevice *dev)
 {
-	void __iomem *base;
+	void __iomem *base = (void *)ANATOP_BASE_ADDR;
+
+#ifndef CONFIG_SPL_BUILD
 	struct clk osc_24m_clk;
 	int ret;
-
-	base = (void *)ANATOP_BASE_ADDR;
 
 	ret = clk_get_by_name(dev, "osc_24m", &osc_24m_clk);
 	if (ret)
 		return ret;
 
 	clk_dm(IMX8MM_CLK_24M, dev_get_clk_ptr(osc_24m_clk.dev));
+#endif
 
 	clk_dm(IMX8MM_VIDEO_PLL1_REF_SEL,
 	       imx_clk_mux("video_pll1_ref_sel", base + 0x28, 0, 2,
